@@ -1,0 +1,481 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+
+// ============================================================
+// 0. CHAMPIONSHIPS — Danh sách mùa giải
+// ============================================================
+router.get('/championships', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM CHAMPIONSHIPS ORDER BY champ_code DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// 1. MASTER DATA
+// ============================================================
+router.get('/races', async (req, res) => {
+    try {
+        const { champ_code } = req.query;
+        let query = 'SELECT * FROM RACES';
+        let params = [];
+        if (champ_code) {
+            query += ' WHERE champ_code = ?';
+            params.push(champ_code);
+        }
+        query += ' ORDER BY start_time ASC';
+        const [rows] = await db.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/teams', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM TEAMS ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/teams/:team_code/drivers', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT d.driver_code, d.name, d.nationality, c.contract_id 
+            FROM CONTRACTS c 
+            JOIN DRIVERS d ON c.driver_code = d.driver_code 
+            WHERE c.team_code = ? AND c.is_active = 1
+            ORDER BY d.name ASC
+        `, [req.params.team_code]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// 2. MODULE 1: Register Racing
+// ============================================================
+router.get('/races/:race_code/teams/:team_code/entries', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT c.contract_id, (SELECT COUNT(*) FROM RESULTS WHERE entry_id = re.entry_id) as has_result
+            FROM RACE_ENTRIES re
+            JOIN CONTRACTS c ON re.contract_id = c.contract_id
+            WHERE re.race_code = ? AND c.team_code = ?
+        `, [req.params.race_code, req.params.team_code]);
+        res.json({
+            contract_ids: rows.map(r => r.contract_id),
+            locked: rows.some(r => r.has_result > 0)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
+    const { race_code, team_code } = req.params;
+    const { contract_ids } = req.body;
+
+    if (!Array.isArray(contract_ids) || contract_ids.length > 2) {
+        return res.status(400).json({ error: 'Please submit maximum of 2 racers.' });
+    }
+
+    try {
+        const connection = await db.getConnection();
+        await connection.beginTransaction();
+        try {
+            const [hasResults] = await connection.query(`
+                SELECT COUNT(*) as count FROM RESULTS r
+                JOIN RACE_ENTRIES re ON r.entry_id = re.entry_id
+                JOIN CONTRACTS c ON re.contract_id = c.contract_id
+                WHERE re.race_code = ? AND c.team_code = ?
+            `, [race_code, team_code]);
+            if (hasResults[0].count > 0) {
+                connection.release();
+                return res.status(400).json({ error: 'Data is locked. Cannot alter registration after results have been entered.' });
+            }
+
+            const [existing] = await connection.query(`
+                SELECT re.entry_id, re.contract_id 
+                FROM RACE_ENTRIES re JOIN CONTRACTS c ON re.contract_id = c.contract_id
+                WHERE re.race_code = ? AND c.team_code = ?
+            `, [race_code, team_code]);
+            const existingIds = existing.map(e => e.contract_id);
+
+            const toDelete = existing.filter(e => !contract_ids.includes(e.contract_id));
+            if (toDelete.length > 0) {
+                const entryIdsToDelete = toDelete.map(e => e.entry_id);
+                await connection.query(`DELETE FROM RESULTS WHERE entry_id IN (?)`, [entryIdsToDelete]);
+                await connection.query(`DELETE FROM RACE_ENTRIES WHERE entry_id IN (?)`, [entryIdsToDelete]);
+            }
+
+            const toInsert = contract_ids.filter(id => !existingIds.includes(id));
+            for (const cid of toInsert) {
+                await connection.query(`INSERT INTO RACE_ENTRIES (race_code, contract_id) VALUES (?, ?)`, [race_code, cid]);
+            }
+
+            await connection.commit();
+            res.json({ success: true, message: 'Sync successful' });
+        } catch (txnErr) {
+            await connection.rollback();
+            throw txnErr;
+        } finally {
+            connection.release();
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// 3. MODULE 2: Update Results
+// ============================================================
+router.get('/races/:race_code/entries', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT re.entry_id, d.name AS driver_name, t.name AS team_name, re.race_code,
+                   rs.end_time, rs.laps_completed, rs.status,
+                   CASE WHEN rs.entry_id IS NOT NULL THEN 1 ELSE 0 END AS is_locked
+            FROM RACE_ENTRIES re 
+            JOIN CONTRACTS c ON re.contract_id = c.contract_id 
+            JOIN DRIVERS d ON c.driver_code = d.driver_code 
+            JOIN TEAMS t ON c.team_code = t.team_code
+            LEFT JOIN RESULTS rs ON re.entry_id = rs.entry_id
+            WHERE re.race_code = ?
+            ORDER BY t.name ASC, d.name ASC
+        `, [req.params.race_code]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/races/results', async (req, res) => {
+    const { results } = req.body;
+
+    try {
+        const connection = await db.getConnection();
+        await connection.beginTransaction();
+        try {
+            // Lấy thông tin chặng đua (num_laps) từ entry đầu tiên
+            if (results.length > 0) {
+                const [raceInfo] = await connection.query(`
+                    SELECT r.num_laps, r.name AS race_name
+                    FROM RACE_ENTRIES re
+                    JOIN RACES r ON re.race_code = r.race_code
+                    WHERE re.entry_id = ?
+                `, [results[0].entry_id]);
+
+                if (raceInfo.length > 0) {
+                    const numLaps = raceInfo[0].num_laps;
+
+                    // Validate: nếu status = 'Finished' thì laps_completed phải = num_laps
+                    for (const r of results) {
+                        if (r.status === 'Finished') {
+                            const laps = parseInt(r.laps_completed);
+                            if (laps !== numLaps) {
+                                // Lấy tên tay đua để thông báo lỗi cụ thể
+                                const [driverInfo] = await connection.query(`
+                                    SELECT d.name AS driver_name
+                                    FROM RACE_ENTRIES re
+                                    JOIN CONTRACTS c ON re.contract_id = c.contract_id
+                                    JOIN DRIVERS d ON c.driver_code = d.driver_code
+                                    WHERE re.entry_id = ?
+                                `, [r.entry_id]);
+                                const driverName = driverInfo.length > 0 ? driverInfo[0].driver_name : `Entry #${r.entry_id}`;
+                                await connection.rollback();
+                                connection.release();
+                                return res.status(400).json({
+                                    error: `Lỗi nghiệp vụ: Tay đua "${driverName}" có trạng thái "Hoàn thành" (Finished) nhưng số vòng hoàn thành (${laps}) không bằng tổng số vòng của chặng (${numLaps}). Tay đua hoàn thành chặng phải chạy đủ ${numLaps} vòng, hoặc đổi trạng thái thành DNF/Accident.`
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (const r of results) {
+                const endTime = r.end_time ? r.end_time : null;
+                const laps = r.laps_completed ? r.laps_completed : 0;
+                await connection.query(`
+                    INSERT INTO RESULTS (entry_id, end_time, laps_completed, status)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        end_time = VALUES(end_time),
+                        laps_completed = VALUES(laps_completed),
+                        status = VALUES(status)
+                `, [r.entry_id, endTime, laps, r.status]);
+            }
+
+            if (results.length > 0) {
+                const [raceData] = await connection.query(
+                    `SELECT race_code FROM RACE_ENTRIES WHERE entry_id = ?`,
+                    [results[0].entry_id]
+                );
+                if (raceData.length > 0) {
+                    await connection.query(`CALL sp_calculate_points(?)`, [raceData[0].race_code]);
+                }
+            }
+
+            await connection.commit();
+            res.json({ success: true, message: 'Results saved successfully' });
+        } catch (txnErr) {
+            await connection.rollback();
+            throw txnErr;
+        } finally {
+            connection.release();
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/results/:entry_id', async (req, res) => {
+    try {
+        await db.query('DELETE FROM RESULTS WHERE entry_id = ?', [req.params.entry_id]);
+        res.json({ success: true, message: 'Result cleared' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// 4. MODULE 3: Driver Standings — Lọc theo champ_code
+// ============================================================
+router.get('/standings/drivers', async (req, res) => {
+    const { stage, champ_code } = req.query;
+    try {
+        let query;
+        let queryParams = [];
+
+        if (stage) {
+            // BXH tính đến một chặng cụ thể (trong cùng mùa giải)
+            query = `
+                SELECT d.driver_code, d.name, d.nationality, t.name AS team_name,
+                SUM(vp.points) AS total_score,
+                SUM(CASE WHEN vp.status = 'Finished' THEN vp.finish_time_seconds ELSE 0 END) AS total_time
+                FROM DRIVERS d
+                JOIN v_race_performance vp ON vp.driver_code = d.driver_code
+                JOIN TEAMS t ON vp.team_code = t.team_code
+                JOIN RACES r ON vp.race_code = r.race_code
+                WHERE r.start_time <= (SELECT start_time FROM RACES WHERE race_code = ?)
+                  AND r.champ_code = (SELECT champ_code FROM RACES WHERE race_code = ?)
+                GROUP BY d.driver_code, d.name, d.nationality, t.name
+                ORDER BY total_score DESC, total_time ASC
+            `;
+            queryParams = [stage, stage];
+        } else if (champ_code) {
+            // BXH toàn mùa giải theo champ_code
+            query = `
+                SELECT d.driver_code, d.name, d.nationality, t.name AS team_name,
+                SUM(vp.points) AS total_score,
+                SUM(CASE WHEN vp.status = 'Finished' THEN vp.finish_time_seconds ELSE 0 END) AS total_time
+                FROM DRIVERS d
+                JOIN v_race_performance vp ON vp.driver_code = d.driver_code
+                JOIN TEAMS t ON vp.team_code = t.team_code
+                WHERE vp.champ_code = ?
+                GROUP BY d.driver_code, d.name, d.nationality, t.name
+                ORDER BY total_score DESC, total_time ASC
+            `;
+            queryParams = [champ_code];
+        } else {
+            query = `SELECT driver_code, name, nationality, team_name, total_score, total_season_time AS total_time FROM v_driver_standings`;
+        }
+
+        const [rows] = await db.query(query, queryParams);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/drivers/:driver_code/results', async (req, res) => {
+    try {
+        const { champ_code } = req.query;
+        let query = `
+            SELECT r.name AS stage_name, 
+                   CASE WHEN vp.status = 'Finished' THEN 
+                       (SELECT COUNT(*)+1 FROM v_race_performance vp2 
+                        WHERE vp2.race_code = vp.race_code 
+                          AND vp2.status = 'Finished' 
+                          AND vp2.finish_time_seconds < vp.finish_time_seconds)
+                   ELSE NULL END AS finish_rank,
+                   vp.points AS score, 
+                   vp.finish_time_seconds AS time_to_finish, 
+                   vp.status,
+                   r.champ_code
+            FROM v_race_performance vp
+            JOIN RACES r ON vp.race_code = r.race_code
+            WHERE vp.driver_code = ?
+        `;
+        let params = [req.params.driver_code];
+        if (champ_code) {
+            query += ' AND r.champ_code = ?';
+            params.push(champ_code);
+        }
+        query += ' ORDER BY r.start_time ASC';
+        const [rows] = await db.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
+// 5. MODULE 4: Team Standings — Lọc theo champ_code
+// ============================================================
+router.get('/standings/teams', async (req, res) => {
+    const { stage, champ_code } = req.query;
+    try {
+        let query;
+        let queryParams = [];
+
+        if (stage) {
+            query = `
+                SELECT t.team_code, t.name AS team_name, t.brand,
+                SUM(vp.points) AS total_score,
+                SUM(CASE WHEN vp.status = 'Finished' THEN vp.finish_time_seconds ELSE 0 END) AS total_time
+                FROM TEAMS t
+                JOIN v_race_performance vp ON vp.team_code = t.team_code
+                JOIN RACES r ON vp.race_code = r.race_code
+                WHERE r.start_time <= (SELECT start_time FROM RACES WHERE race_code = ?)
+                  AND r.champ_code = (SELECT champ_code FROM RACES WHERE race_code = ?)
+                GROUP BY t.team_code, t.name, t.brand
+                ORDER BY total_score DESC, total_time ASC
+            `;
+            queryParams = [stage, stage];
+        } else if (champ_code) {
+            query = `
+                SELECT t.team_code, t.name AS team_name, t.brand,
+                SUM(vp.points) AS total_score,
+                SUM(CASE WHEN vp.status = 'Finished' THEN vp.finish_time_seconds ELSE 0 END) AS total_time
+                FROM TEAMS t
+                JOIN v_race_performance vp ON vp.team_code = t.team_code
+                WHERE vp.champ_code = ?
+                GROUP BY t.team_code, t.name, t.brand
+                ORDER BY total_score DESC, total_time ASC
+            `;
+            queryParams = [champ_code];
+        } else {
+            query = `SELECT team_code, team_name, brand, team_total_score AS total_score, team_total_time AS total_time FROM v_team_standings`;
+        }
+
+        const [rows] = await db.query(query, queryParams);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/teams/:team_code/results', async (req, res) => {
+    try {
+        const { champ_code } = req.query;
+        let query = `
+            SELECT r.name AS stage_name, 
+            SUM(vp.points) AS total_score,
+            SUM(CASE WHEN vp.status = 'Finished' THEN vp.finish_time_seconds ELSE 0 END) AS total_time
+            FROM v_race_performance vp
+            JOIN RACES r ON vp.race_code = r.race_code
+            WHERE vp.team_code = ?
+        `;
+        let params = [req.params.team_code];
+        if (champ_code) {
+            query += ' AND r.champ_code = ?';
+            params.push(champ_code);
+        }
+        query += ' GROUP BY r.race_code, r.name, r.start_time ORDER BY r.start_time ASC';
+        const [rows] = await db.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// === DATABASE INSPECTOR START ===
+// ==========================================
+router.get('/db-metadata', async (req, res) => {
+    try {
+        const [tables] = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'F1_Championship_Management' AND table_type = 'BASE TABLE'");
+        const [views] = await db.query("SELECT table_name FROM information_schema.views WHERE table_schema = 'F1_Championship_Management'");
+        const [triggers] = await db.query("SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema = 'F1_Championship_Management'");
+        const [procedures] = await db.query("SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'F1_Championship_Management' AND routine_type = 'PROCEDURE'");
+        const [indexes] = await db.query(`
+            SELECT table_name, index_name, column_name 
+            FROM information_schema.statistics 
+            WHERE table_schema = 'F1_Championship_Management' 
+              AND index_name NOT LIKE 'PRIMARY'
+              AND index_name NOT LIKE 'fk_%'
+              AND index_name NOT LIKE 'col_%'
+              AND index_name NOT LIKE 'contract_id'
+              AND index_name NOT LIKE 'driver_code'
+              AND index_name NOT LIKE 'race_code'
+              AND index_name NOT LIKE 'team_code'
+              AND index_name NOT LIKE 'sponsor_code'
+        `);
+        
+        // Group indexes by name to avoid duplicates due to multi-column indexes
+        const uniqueIndexes = [];
+        const indexNames = new Set();
+        indexes.forEach(idx => {
+            const tableName = idx.TABLE_NAME || idx.table_name;
+            const indexName = idx.INDEX_NAME || idx.index_name;
+            const columnName = idx.COLUMN_NAME || idx.column_name;
+            const key = `${tableName}-${indexName}`;
+            if (!indexNames.has(key)) {
+                indexNames.add(key);
+                uniqueIndexes.push({
+                    table: tableName,
+                    name: indexName,
+                    column: columnName
+                });
+            }
+        });
+
+        res.json({
+            tables: tables.map(t => t.TABLE_NAME || t.table_name),
+            views: views.map(v => v.TABLE_NAME || v.table_name),
+            triggers: triggers.map(t => ({ 
+                name: t.TRIGGER_NAME || t.trigger_name, 
+                event: t.EVENT_MANIPULATION || t.event_manipulation, 
+                table: t.EVENT_OBJECT_TABLE || t.event_object_table 
+            })),
+            procedures: procedures.map(p => p.ROUTINE_NAME || p.routine_name),
+            indexes: uniqueIndexes
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/db-view/:view_name', async (req, res) => {
+    const { view_name } = req.params;
+    const allowedViews = [
+        'v_race_performance', 'v_driver_standings', 'v_team_standings', 
+        'v_active_contracts', 'v_race_schedule', 'v_team_sponsors', 
+        'v_race_penalties', 'v_driver_penalties_summary', 
+        'v_driver_career_summary', 'v_championship_summary'
+    ];
+
+    if (!allowedViews.includes(view_name)) {
+        return res.status(400).json({ error: 'Khung nhìn không hợp lệ hoặc không được phép truy cập.' });
+    }
+
+    try {
+        const [rows] = await db.query(`SELECT * FROM ${view_name} LIMIT 50`);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// ==========================================
+// === DATABASE INSPECTOR END ===
+// ==========================================
+
+module.exports = router;
