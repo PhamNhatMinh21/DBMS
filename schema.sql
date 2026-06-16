@@ -1,29 +1,15 @@
--- ============================================================
--- F1 CHAMPIONSHIP MANAGEMENT SYSTEM — EXPANDED SCHEMA + SEED DATA
--- Hỗ trợ nhiều mùa giải (CHAMPIONSHIPS)
--- 10 Tables, 10 Triggers, 10 Procedures, 10 Views, 10 Indexes
--- ============================================================
-
 DROP DATABASE IF EXISTS F1_Championship_Management;
 CREATE DATABASE F1_Championship_Management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE F1_Championship_Management;
 
--- Tắt safe update mode (MySQL Workbench bật mặc định, chặn UPDATE không dùng KEY column)
 SET SQL_SAFE_UPDATES = 0;
 
-
--- ============================================================
--- 1. CẤU TRÚC BẢNG (12 BẢNG)
--- ============================================================
-
--- Bảng 1: CHAMPIONSHIPS (Đã có)
 CREATE TABLE CHAMPIONSHIPS (
     champ_code  VARCHAR(10)  PRIMARY KEY,
     name        VARCHAR(255) NOT NULL,
     description TEXT
 );
 
--- Bảng 2: TEAMS (Đã có)
 CREATE TABLE TEAMS (
     team_code   VARCHAR(10)  PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
@@ -32,7 +18,6 @@ CREATE TABLE TEAMS (
     description TEXT
 );
 
--- Bảng 3: DRIVERS (Đã có)
 CREATE TABLE DRIVERS (
     driver_code   VARCHAR(10)  PRIMARY KEY,
     name          VARCHAR(100) NOT NULL,
@@ -41,7 +26,6 @@ CREATE TABLE DRIVERS (
     biography     TEXT
 );
 
--- Bảng 4: CONTRACTS (Đã có)
 CREATE TABLE CONTRACTS (
     contract_id INT          AUTO_INCREMENT PRIMARY KEY,
     driver_code VARCHAR(10),
@@ -51,8 +35,6 @@ CREATE TABLE CONTRACTS (
     FOREIGN KEY (team_code)   REFERENCES TEAMS(team_code)
 );
 
--- Bảng 5: CIRCUITS (MỚI)
--- Bảng 5: RACES (Mở rộng)
 CREATE TABLE RACES (
     race_code    VARCHAR(10)  PRIMARY KEY,
     name         VARCHAR(100) NOT NULL,
@@ -64,10 +46,6 @@ CREATE TABLE RACES (
     FOREIGN KEY (champ_code) REFERENCES CHAMPIONSHIPS(champ_code)
 );
 
--- Bảng 5: RACES (Mở rộng)
--- (Khai báo ở trên do phụ thuộc vòng của khóa ngoại)
-
--- Bảng 6: RACE_ENTRIES (Đã có)
 CREATE TABLE RACE_ENTRIES (
     entry_id    INT AUTO_INCREMENT PRIMARY KEY,
     race_code   VARCHAR(10),
@@ -77,7 +55,6 @@ CREATE TABLE RACE_ENTRIES (
     UNIQUE(race_code, contract_id)
 );
 
--- Bảng 7: RESULTS (Đã có)
 CREATE TABLE RESULTS (
     entry_id       INT PRIMARY KEY,
     end_time       DATETIME(3),
@@ -89,7 +66,6 @@ CREATE TABLE RESULTS (
     CONSTRAINT chk_points         CHECK (points >= 0)
 );
 
--- Bảng 8: SPONSORS (MỚI)
 CREATE TABLE SPONSORS (
     sponsor_code VARCHAR(10)  PRIMARY KEY,
     name         VARCHAR(100) NOT NULL,
@@ -97,7 +73,6 @@ CREATE TABLE SPONSORS (
     description  TEXT
 );
 
--- Bảng 9: TEAM_SPONSORSHIPS (MỚI)
 CREATE TABLE TEAM_SPONSORSHIPS (
     sponsorship_id INT AUTO_INCREMENT PRIMARY KEY,
     team_code      VARCHAR(10),
@@ -109,7 +84,6 @@ CREATE TABLE TEAM_SPONSORSHIPS (
     FOREIGN KEY (sponsor_code) REFERENCES SPONSORS(sponsor_code)
 );
 
--- Bảng 10: PENALTIES (MỚI)
 CREATE TABLE PENALTIES (
     penalty_id     INT AUTO_INCREMENT PRIMARY KEY,
     entry_id       INT,
@@ -122,11 +96,11 @@ CREATE TABLE PENALTIES (
 
 
 -- ============================================================
--- 2. TRÌNH KÍCH HOẠT (10 TRIGGERS)
+-- 1. TRÌNH KÍCH HOẠT (10 TRIGGERS)
 -- ============================================================
 DELIMITER //
 
--- Trigger 1: trg_limit_2_riders (Đã có)
+-- Trigger 1: trg_limit_2_riders
 CREATE TRIGGER trg_limit_2_riders
 BEFORE INSERT ON RACE_ENTRIES
 FOR EACH ROW
@@ -143,7 +117,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 2: trg_check_time_insert (Đã có)
+-- Trigger 2: trg_check_time_insert
 CREATE TRIGGER trg_check_time_insert
 BEFORE INSERT ON RESULTS
 FOR EACH ROW
@@ -160,7 +134,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 3: trg_check_time_update (Đã có)
+-- Trigger 3: trg_check_time_update
 CREATE TRIGGER trg_check_time_update
 BEFORE UPDATE ON RESULTS
 FOR EACH ROW
@@ -177,7 +151,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 4: trg_limit_laps_completed_insert (MỚI)
+-- Trigger 4: trg_limit_laps_completed_insert
 CREATE TRIGGER trg_limit_laps_completed_insert
 BEFORE INSERT ON RESULTS
 FOR EACH ROW
@@ -192,7 +166,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 5: trg_limit_laps_completed_update (MỚI)
+-- Trigger 5: trg_limit_laps_completed_update
 CREATE TRIGGER trg_limit_laps_completed_update
 BEFORE UPDATE ON RESULTS
 FOR EACH ROW
@@ -207,7 +181,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 6: trg_single_active_contract (MỚI)
+-- Trigger 6: trg_single_active_contract
 CREATE TRIGGER trg_single_active_contract
 BEFORE INSERT ON CONTRACTS
 FOR EACH ROW
@@ -223,7 +197,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 7: trg_validate_penalty_value (MỚI)
+-- Trigger 7: trg_validate_penalty_value
 CREATE TRIGGER trg_validate_penalty_value
 BEFORE INSERT ON PENALTIES
 FOR EACH ROW
@@ -234,7 +208,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 8: trg_check_dob_insert (MỚI)
+-- Trigger 8: trg_check_dob_insert
 CREATE TRIGGER trg_check_dob_insert
 BEFORE INSERT ON DRIVERS
 FOR EACH ROW
@@ -245,7 +219,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 9: trg_prevent_negative_laps_race (MỚI)
+-- Trigger 9: trg_prevent_negative_laps_race 
 CREATE TRIGGER trg_prevent_negative_laps_race
 BEFORE INSERT ON RACES
 FOR EACH ROW
@@ -256,7 +230,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 10: trg_check_sponsorship_years (MỚI)
+-- Trigger 10: trg_check_sponsorship_years 
 CREATE TRIGGER trg_check_sponsorship_years
 BEFORE INSERT ON TEAM_SPONSORSHIPS
 FOR EACH ROW
@@ -271,11 +245,11 @@ DELIMITER ;
 
 
 -- ============================================================
--- 3. THỦ TỤC LƯU TRỮ (10 PROCEDURES)
+-- 2. THỦ TỤC LƯU TRỮ (10 PROCEDURES)
 -- ============================================================
 DELIMITER //
 
--- Procedure 1: sp_calculate_points (Đã có)
+-- Procedure 1: sp_calculate_points 
 CREATE PROCEDURE sp_calculate_points(IN p_race_code VARCHAR(10))
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -312,7 +286,7 @@ BEGIN
     COMMIT;
 END //
 
--- Procedure 2: sp_add_driver (MỚI)
+-- Procedure 2: sp_add_driver 
 CREATE PROCEDURE sp_add_driver(
     IN p_driver_code VARCHAR(10),
     IN p_name VARCHAR(100),
@@ -329,7 +303,7 @@ BEGIN
     END IF;
 END //
 
--- Procedure 3: sp_create_contract (MỚI)
+-- Procedure 3: sp_create_contract 
 CREATE PROCEDURE sp_create_contract(
     IN p_driver_code VARCHAR(10),
     IN p_team_code VARCHAR(10),
@@ -342,7 +316,7 @@ BEGIN
     INSERT INTO CONTRACTS (driver_code, team_code, is_active) VALUES (p_driver_code, p_team_code, p_is_active);
 END //
 
--- Procedure 4: sp_register_race_entry (MỚI)
+-- Procedure 4: sp_register_race_entry 
 CREATE PROCEDURE sp_register_race_entry(
     IN p_race_code VARCHAR(10),
     IN p_contract_id INT
@@ -351,7 +325,7 @@ BEGIN
     INSERT INTO RACE_ENTRIES (race_code, contract_id) VALUES (p_race_code, p_contract_id);
 END //
 
--- Procedure 5: sp_add_penalty (MỚI)
+-- Procedure 5: sp_add_penalty 
 CREATE PROCEDURE sp_add_penalty(
     IN p_entry_id INT,
     IN p_type VARCHAR(50),
@@ -363,7 +337,7 @@ BEGIN
     VALUES (p_entry_id, p_type, p_severity, p_reason, 1);
 END //
 
--- Procedure 6: sp_add_sponsor (MỚI)
+-- Procedure 6: sp_add_sponsor 
 CREATE PROCEDURE sp_add_sponsor(
     IN p_sponsor_code VARCHAR(10),
     IN p_name VARCHAR(100),
@@ -374,7 +348,7 @@ BEGIN
     INSERT INTO SPONSORS VALUES (p_sponsor_code, p_name, p_industry, p_description);
 END //
 
--- Procedure 7: sp_get_driver_performance (MỚI)
+-- Procedure 7: sp_get_driver_performance 
 CREATE PROCEDURE sp_get_driver_performance(IN p_driver_code VARCHAR(10))
 BEGIN
     SELECT 
@@ -391,7 +365,7 @@ BEGIN
     GROUP BY d.driver_code, d.name;
 END //
 
--- Procedure 8: sp_get_team_drivers (MỚI)
+-- Procedure 8: sp_get_team_drivers 
 CREATE PROCEDURE sp_get_team_drivers(IN p_team_code VARCHAR(10))
 BEGIN
     SELECT DISTINCT d.driver_code, d.name, d.nationality, c.is_active
@@ -401,13 +375,13 @@ BEGIN
     ORDER BY c.is_active DESC, d.name ASC;
 END //
 
--- Procedure 9: sp_terminate_active_contracts(IN p_driver_code VARCHAR(10)) (MỚI)
+-- Procedure 9: sp_terminate_active_contracts(IN p_driver_code VARCHAR(10))
 CREATE PROCEDURE sp_terminate_active_contracts(IN p_driver_code VARCHAR(10))
 BEGIN
     UPDATE CONTRACTS SET is_active = 0 WHERE driver_code = p_driver_code AND is_active = 1;
 END //
 
--- Procedure 10: sp_transfer_driver (MỚI)
+-- Procedure 10: sp_transfer_driver 
 CREATE PROCEDURE sp_transfer_driver(
     IN p_driver_code VARCHAR(10),
     IN p_new_team_code VARCHAR(10)
@@ -421,10 +395,10 @@ DELIMITER ;
 
 
 -- ============================================================
--- 4. KHUNG NHÌN (10 VIEWS)
+-- 3. KHUNG NHÌN (10 VIEWS)
 -- ============================================================
 
--- View 1: v_race_performance (Đã có)
+-- View 1: v_race_performance 
 CREATE VIEW v_race_performance AS
 SELECT re.race_code, c.driver_code, c.team_code, res.status,
        res.laps_completed, res.points,
@@ -436,7 +410,7 @@ JOIN RACE_ENTRIES re ON res.entry_id = re.entry_id
 JOIN RACES r ON re.race_code = r.race_code
 JOIN CONTRACTS c ON re.contract_id = c.contract_id;
 
--- View 2: v_driver_standings (Đã có)
+-- View 2: v_driver_standings 
 CREATE VIEW v_driver_standings AS
 SELECT
     d.driver_code, d.name, d.nationality, t.name AS team_name,
@@ -449,7 +423,7 @@ WHERE v.champ_code = (SELECT champ_code FROM CHAMPIONSHIPS ORDER BY champ_code D
 GROUP BY d.driver_code, d.name, d.nationality, t.name
 ORDER BY total_score DESC, total_season_time ASC;
 
--- View 3: v_team_standings (Đã có)
+-- View 3: v_team_standings 
 CREATE VIEW v_team_standings AS
 SELECT
     t.team_code, t.name AS team_name, t.brand,
@@ -461,7 +435,7 @@ WHERE v.champ_code = (SELECT champ_code FROM CHAMPIONSHIPS ORDER BY champ_code D
 GROUP BY t.team_code, t.name, t.brand
 ORDER BY team_total_score DESC, team_total_time ASC;
 
--- View 4: v_active_contracts (MỚI)
+-- View 4: v_active_contracts 
 CREATE VIEW v_active_contracts AS
 SELECT c.contract_id, d.driver_code, d.name AS driver_name, t.team_code, t.name AS team_name
 FROM CONTRACTS c
@@ -469,21 +443,21 @@ JOIN DRIVERS d ON c.driver_code = d.driver_code
 JOIN TEAMS t ON c.team_code = t.team_code
 WHERE c.is_active = 1;
 
--- View 5: v_race_schedule (MỚI)
+-- View 5: v_race_schedule 
 CREATE VIEW v_race_schedule AS
 SELECT r.race_code, r.name AS race_name, ch.name AS championship_name, 
        r.location, r.start_time
 FROM RACES r
 JOIN CHAMPIONSHIPS ch ON r.champ_code = ch.champ_code;
 
--- View 6: v_team_sponsors (MỚI)
+-- View 6: v_team_sponsors 
 CREATE VIEW v_team_sponsors AS
 SELECT t.team_code, t.name AS team_name, s.name AS sponsor_name, s.industry, ts.funding_amount
 FROM TEAM_SPONSORSHIPS ts
 JOIN TEAMS t ON ts.team_code = t.team_code
 JOIN SPONSORS s ON ts.sponsor_code = s.sponsor_code;
 
--- View 7: v_race_penalties (MỚI)
+-- View 7: v_race_penalties 
 CREATE VIEW v_race_penalties AS
 SELECT r.race_code, r.name AS race_name, d.name AS driver_name, t.name AS team_name, 
        p.type AS penalty_type, p.severity_value, p.reason
@@ -494,7 +468,7 @@ JOIN CONTRACTS c ON re.contract_id = c.contract_id
 JOIN DRIVERS d ON c.driver_code = d.driver_code
 JOIN TEAMS t ON c.team_code = t.team_code;
 
--- View 8: v_driver_penalties_summary (MỚI)
+-- View 8: v_driver_penalties_summary 
 CREATE VIEW v_driver_penalties_summary AS
 SELECT d.driver_code, d.name AS driver_name, COUNT(p.penalty_id) AS total_penalties, SUM(p.severity_value) AS total_severity
 FROM PENALTIES p
@@ -503,7 +477,7 @@ JOIN CONTRACTS c ON re.contract_id = c.contract_id
 JOIN DRIVERS d ON c.driver_code = d.driver_code
 GROUP BY d.driver_code, d.name;
 
--- View 9: v_driver_career_summary (MỚI)
+-- View 9: v_driver_career_summary
 CREATE VIEW v_driver_career_summary AS
 SELECT d.driver_code, d.name, d.nationality, 
        COUNT(DISTINCT re.race_code) AS total_races_entered,
@@ -515,7 +489,7 @@ LEFT JOIN RACE_ENTRIES re ON c.contract_id = re.contract_id
 LEFT JOIN RESULTS res ON re.entry_id = res.entry_id
 GROUP BY d.driver_code, d.name, d.nationality;
 
--- View 10: v_championship_summary (MỚI)
+-- View 10: v_championship_summary
 CREATE VIEW v_championship_summary AS
 SELECT ch.champ_code, ch.name AS championship_name,
        COUNT(DISTINCT r.race_code) AS total_races,
@@ -529,7 +503,7 @@ GROUP BY ch.champ_code, ch.name;
 
 
 -- ============================================================
--- 5. CHỈ MỤC (10 INDEXES)
+-- 4. CHỈ MỤC (10 INDEXES)
 -- ============================================================
 
 -- Index 1, 2, 3, 4, 5: Đã có
@@ -548,7 +522,7 @@ CREATE INDEX idx_team_sponsorships_yr ON TEAM_SPONSORSHIPS(start_year, end_year)
 
 
 -- ============================================================
--- 6. DỮ LIỆU MẪU (SEED DATA)
+-- 5. DỮ LIỆU MẪU
 -- ============================================================
 
 -- Mùa giải
@@ -763,8 +737,6 @@ INSERT INTO TEAM_SPONSORSHIPS (team_code, sponsor_code, funding_amount, start_ye
     ('MER', 'PETRONAS', 75000000.00, 2010, 2026),
     ('FER', 'SANTANDER', 60000000.00, 2021, 2025),
     ('FER', 'SHELL', 40000000.00, 1996, 2026);
-
-
 
 -- Hình phạt (PENALTIES)
 -- Seed một vài hình phạt mẫu cho chặng đua năm 2025
