@@ -100,7 +100,7 @@ CREATE TABLE PENALTIES (
 -- ============================================================
 DELIMITER //
 
--- Trigger 1: trg_limit_2_riders
+-- Trigger 1: Giới hạn 2 tay đua/đội/chặng
 CREATE TRIGGER trg_limit_2_riders
 BEFORE INSERT ON RACE_ENTRIES
 FOR EACH ROW
@@ -117,7 +117,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 2: trg_check_time_insert
+-- Trigger 2: Kiểm tra thời gian hoàn thành
 CREATE TRIGGER trg_check_time_insert
 BEFORE INSERT ON RESULTS
 FOR EACH ROW
@@ -134,7 +134,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 3: trg_check_time_update
+-- Trigger 3: Kiểm tra thời gian hoàn thành
 CREATE TRIGGER trg_check_time_update
 BEFORE UPDATE ON RESULTS
 FOR EACH ROW
@@ -151,7 +151,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 4: trg_limit_laps_completed_insert
+-- Trigger 4: Kiểm tra giới hạn vòng đua
 CREATE TRIGGER trg_limit_laps_completed_insert
 BEFORE INSERT ON RESULTS
 FOR EACH ROW
@@ -166,7 +166,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 5: trg_limit_laps_completed_update
+-- Trigger 5: Kiểm tra giới hạn vòng đua
 CREATE TRIGGER trg_limit_laps_completed_update
 BEFORE UPDATE ON RESULTS
 FOR EACH ROW
@@ -181,7 +181,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 6: trg_single_active_contract
+-- Trigger 6: Ràng buộc duy nhất 1 hợp đồng hoạt động
 CREATE TRIGGER trg_single_active_contract
 BEFORE INSERT ON CONTRACTS
 FOR EACH ROW
@@ -197,7 +197,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 7: trg_validate_penalty_value
+-- Trigger 7: Kiểm tra giá trị phạt không âm
 CREATE TRIGGER trg_validate_penalty_value
 BEFORE INSERT ON PENALTIES
 FOR EACH ROW
@@ -208,7 +208,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 8: trg_check_dob_insert
+-- Trigger 8: Kiểm tra ngày sinh
 CREATE TRIGGER trg_check_dob_insert
 BEFORE INSERT ON DRIVERS
 FOR EACH ROW
@@ -219,7 +219,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 9: trg_prevent_negative_laps_race 
+-- Trigger 9: Ngăn chặn số vòng đua âm
 CREATE TRIGGER trg_prevent_negative_laps_race
 BEFORE INSERT ON RACES
 FOR EACH ROW
@@ -230,7 +230,7 @@ BEGIN
     END IF;
 END //
 
--- Trigger 10: trg_check_sponsorship_years 
+-- Trigger 10: Kiểm tra năm tài trợ
 CREATE TRIGGER trg_check_sponsorship_years
 BEFORE INSERT ON TEAM_SPONSORSHIPS
 FOR EACH ROW
@@ -249,7 +249,7 @@ DELIMITER ;
 -- ============================================================
 DELIMITER //
 
--- Procedure 1: sp_calculate_points 
+-- Procedure 1: Tính điểm chặng tự động
 CREATE PROCEDURE sp_calculate_points(IN p_race_code VARCHAR(10))
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -286,7 +286,7 @@ BEGIN
     COMMIT;
 END //
 
--- Procedure 2: sp_add_driver 
+-- Procedure 2: Thêm mới tay đua
 CREATE PROCEDURE sp_add_driver(
     IN p_driver_code VARCHAR(10),
     IN p_name VARCHAR(100),
@@ -303,7 +303,7 @@ BEGIN
     END IF;
 END //
 
--- Procedure 3: sp_create_contract 
+-- Procedure 3: Tạo hợp đồng mới
 CREATE PROCEDURE sp_create_contract(
     IN p_driver_code VARCHAR(10),
     IN p_team_code VARCHAR(10),
@@ -316,7 +316,7 @@ BEGIN
     INSERT INTO CONTRACTS (driver_code, team_code, is_active) VALUES (p_driver_code, p_team_code, p_is_active);
 END //
 
--- Procedure 4: sp_register_race_entry 
+-- Procedure 4: Đăng ký tham gia chặng đua
 CREATE PROCEDURE sp_register_race_entry(
     IN p_race_code VARCHAR(10),
     IN p_contract_id INT
@@ -325,7 +325,7 @@ BEGIN
     INSERT INTO RACE_ENTRIES (race_code, contract_id) VALUES (p_race_code, p_contract_id);
 END //
 
--- Procedure 5: sp_add_penalty 
+-- Procedure 5: Thêm hình phạt
 CREATE PROCEDURE sp_add_penalty(
     IN p_entry_id INT,
     IN p_type VARCHAR(50),
@@ -337,7 +337,7 @@ BEGIN
     VALUES (p_entry_id, p_type, p_severity, p_reason, 1);
 END //
 
--- Procedure 6: sp_add_sponsor 
+-- Procedure 6: Thêm nhà tài trợ mới
 CREATE PROCEDURE sp_add_sponsor(
     IN p_sponsor_code VARCHAR(10),
     IN p_name VARCHAR(100),
@@ -348,7 +348,7 @@ BEGIN
     INSERT INTO SPONSORS VALUES (p_sponsor_code, p_name, p_industry, p_description);
 END //
 
--- Procedure 7: sp_get_driver_performance 
+-- Procedure 7: Lấy hiệu suất tay đua
 CREATE PROCEDURE sp_get_driver_performance(IN p_driver_code VARCHAR(10))
 BEGIN
     SELECT 
@@ -365,7 +365,7 @@ BEGIN
     GROUP BY d.driver_code, d.name;
 END //
 
--- Procedure 8: sp_get_team_drivers 
+-- Procedure 8: Lấy danh sách tay đua của đội
 CREATE PROCEDURE sp_get_team_drivers(IN p_team_code VARCHAR(10))
 BEGIN
     SELECT DISTINCT d.driver_code, d.name, d.nationality, c.is_active
@@ -375,13 +375,13 @@ BEGIN
     ORDER BY c.is_active DESC, d.name ASC;
 END //
 
--- Procedure 9: sp_terminate_active_contracts(IN p_driver_code VARCHAR(10))
+-- Procedure 9: Chấm dứt hợp đồng hiện tại
 CREATE PROCEDURE sp_terminate_active_contracts(IN p_driver_code VARCHAR(10))
 BEGIN
     UPDATE CONTRACTS SET is_active = 0 WHERE driver_code = p_driver_code AND is_active = 1;
 END //
 
--- Procedure 10: sp_transfer_driver 
+-- Procedure 10: Chuyển tay đua sang đội mới
 CREATE PROCEDURE sp_transfer_driver(
     IN p_driver_code VARCHAR(10),
     IN p_new_team_code VARCHAR(10)
@@ -398,7 +398,7 @@ DELIMITER ;
 -- 3. KHUNG NHÌN (10 VIEWS)
 -- ============================================================
 
--- View 1: v_race_performance 
+-- View 1: v_race_performance
 CREATE VIEW v_race_performance AS
 SELECT re.race_code, c.driver_code, c.team_code, res.status,
        res.laps_completed, res.points,
@@ -506,14 +506,12 @@ GROUP BY ch.champ_code, ch.name;
 -- 4. CHỈ MỤC (10 INDEXES)
 -- ============================================================
 
--- Index 1, 2, 3, 4, 5: Đã có
 CREATE INDEX idx_race_code            ON RACE_ENTRIES(race_code);
 CREATE INDEX idx_team_code_contracts   ON CONTRACTS(team_code, driver_code);
 CREATE INDEX idx_results_status_time   ON RESULTS(status, end_time);
 CREATE INDEX idx_races_start_time      ON RACES(start_time);
 CREATE INDEX idx_races_champ_code      ON RACES(champ_code);
 
--- Index 6, 7, 8, 9, 10: MỚI
 CREATE INDEX idx_drivers_nationality  ON DRIVERS(nationality);
 CREATE INDEX idx_contracts_is_active  ON CONTRACTS(is_active);
 CREATE INDEX idx_drivers_name         ON DRIVERS(name);
