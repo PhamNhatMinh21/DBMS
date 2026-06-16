@@ -11,7 +11,7 @@ const formatTime = (seconds) => {
 export default function TeamStandings({ champCode }) {
   const [stages, setStages] = useState([]);
   const [selectedStage, setSelectedStage] = useState('');
-  
+
   const [standings, setStandings] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [teamDetails, setTeamDetails] = useState([]);
@@ -73,7 +73,7 @@ export default function TeamStandings({ champCode }) {
       </div>
 
       <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-         <div className="form-group" style={{ margin: 0, maxWidth: '400px' }}>
+        <div className="form-group" style={{ margin: 0, maxWidth: '400px' }}>
           <label className="form-label">Tính điểm xếp hạng đến hết chặng</label>
           <select className="form-control" value={selectedStage} onChange={e => setSelectedStage(e.target.value)}>
             <option value="">-- Cả mùa giải --</option>
@@ -108,7 +108,7 @@ export default function TeamStandings({ champCode }) {
                     <td><span className="score-badge" style={{ fontSize: '1.1rem' }}>{s.total_score} PTS</span></td>
                     <td style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{formatTime(s.total_time)}</td>
                   </tr>
-                  
+
                   {selectedTeam === s.team_code && (
                     <tr>
                       <td colSpan="5" style={{ padding: 0 }}>

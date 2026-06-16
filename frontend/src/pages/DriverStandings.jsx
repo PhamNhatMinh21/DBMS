@@ -21,7 +21,7 @@ const translateStatus = (status) => {
 export default function DriverStandings({ champCode }) {
   const [stages, setStages] = useState([]);
   const [selectedStage, setSelectedStage] = useState('');
-  
+
   const [standings, setStandings] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [driverDetails, setDriverDetails] = useState([]);
@@ -84,7 +84,7 @@ export default function DriverStandings({ champCode }) {
       </div>
 
       <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-         <div className="form-group" style={{ margin: 0, maxWidth: '400px' }}>
+        <div className="form-group" style={{ margin: 0, maxWidth: '400px' }}>
           <label className="form-label">Tính điểm xếp hạng đến hết chặng</label>
           <select className="form-control" value={selectedStage} onChange={e => setSelectedStage(e.target.value)}>
             <option value="">-- Cả mùa giải --</option>
@@ -121,7 +121,7 @@ export default function DriverStandings({ champCode }) {
                     <td><span className="score-badge">{s.total_score} PTS</span></td>
                     <td style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{formatTime(s.total_time)}</td>
                   </tr>
-                  
+
                   {selectedDriver === s.driver_code && (
                     <tr>
                       <td colSpan="6" style={{ padding: 0 }}>

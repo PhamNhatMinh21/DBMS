@@ -5,6 +5,7 @@ const db = require('../db');
 // ============================================================
 // 0. CHAMPIONSHIPS — Danh sách mùa giải
 // ============================================================
+// Lấy danh sách tất cả các mùa giải
 router.get('/championships', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM CHAMPIONSHIPS ORDER BY champ_code DESC');
@@ -17,6 +18,7 @@ router.get('/championships', async (req, res) => {
 // ============================================================
 // 1. MASTER DATA
 // ============================================================
+// Lấy danh sách các chặng đua (có thể lọc theo mùa giải)
 router.get('/races', async (req, res) => {
     try {
         const { champ_code } = req.query;
@@ -34,6 +36,7 @@ router.get('/races', async (req, res) => {
     }
 });
 
+// Lấy danh sách các đội đua
 router.get('/teams', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM TEAMS ORDER BY name ASC');
@@ -43,6 +46,7 @@ router.get('/teams', async (req, res) => {
     }
 });
 
+// Lấy danh sách tay đua thuộc một đội đua
 router.get('/teams/:team_code/drivers', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -61,6 +65,7 @@ router.get('/teams/:team_code/drivers', async (req, res) => {
 // ============================================================
 // 2. MODULE 1: Register Racing
 // ============================================================
+// Lấy danh sách đăng ký tham gia chặng đua của một đội đua
 router.get('/races/:race_code/teams/:team_code/entries', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -70,7 +75,7 @@ router.get('/races/:race_code/teams/:team_code/entries', async (req, res) => {
             WHERE re.race_code = ? AND c.team_code = ?
         `, [req.params.race_code, req.params.team_code]);
         res.json({
-            contract_ids: rows.map(r => r.contract_id),
+            contract_ids: rows.map(r => r.contract_id), // trả về id để frontend biết mà tích là đã chọn r
             locked: rows.some(r => r.has_result > 0)
         });
     } catch (err) {
@@ -78,6 +83,7 @@ router.get('/races/:race_code/teams/:team_code/entries', async (req, res) => {
     }
 });
 
+// Lưu danh sách đăng ký tham gia chặng đua của một đội đua
 router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
     const { race_code, team_code } = req.params;
     const { contract_ids } = req.body;
@@ -90,6 +96,7 @@ router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
         const connection = await db.getConnection();
         await connection.beginTransaction();
         try {
+            // Kiểm tra đã nhập kết quả đua chưa
             const [hasResults] = await connection.query(`
                 SELECT COUNT(*) as count FROM RESULTS r
                 JOIN RACE_ENTRIES re ON r.entry_id = re.entry_id
@@ -101,6 +108,7 @@ router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
                 return res.status(400).json({ error: 'Data is locked. Cannot alter registration after results have been entered.' });
             }
 
+            //Lấy danh sách các contract_id đã có trong database
             const [existing] = await connection.query(`
                 SELECT re.entry_id, re.contract_id 
                 FROM RACE_ENTRIES re JOIN CONTRACTS c ON re.contract_id = c.contract_id
@@ -136,6 +144,7 @@ router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
 // ============================================================
 // 3. MODULE 2: Update Results
 // ============================================================
+// Lấy danh sách tay đua đăng ký tham gia một chặng đua
 router.get('/races/:race_code/entries', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -156,6 +165,7 @@ router.get('/races/:race_code/entries', async (req, res) => {
     }
 });
 
+// Lưu hoặc cập nhật kết quả chặng đua và tính điểm
 router.post('/races/results', async (req, res) => {
     const { results } = req.body;
 
@@ -236,6 +246,7 @@ router.post('/races/results', async (req, res) => {
     }
 });
 
+// Xóa kết quả chặng đua của một lượt đăng ký
 router.delete('/results/:entry_id', async (req, res) => {
     try {
         await db.query('DELETE FROM RESULTS WHERE entry_id = ?', [req.params.entry_id]);
@@ -248,6 +259,7 @@ router.delete('/results/:entry_id', async (req, res) => {
 // ============================================================
 // 4. MODULE 3: Driver Standings — Lọc theo champ_code
 // ============================================================
+// Lấy bảng xếp hạng cá nhân tay đua
 router.get('/standings/drivers', async (req, res) => {
     const { stage, champ_code } = req.query;
     try {
@@ -295,6 +307,7 @@ router.get('/standings/drivers', async (req, res) => {
     }
 });
 
+// Lấy chi tiết kết quả qua các chặng của một tay đua
 router.get('/drivers/:driver_code/results', async (req, res) => {
     try {
         const { champ_code } = req.query;
@@ -330,6 +343,7 @@ router.get('/drivers/:driver_code/results', async (req, res) => {
 // ============================================================
 // 5. MODULE 4: Team Standings — Lọc theo champ_code
 // ============================================================
+// Lấy bảng xếp hạng đồng đội/đội đua
 router.get('/standings/teams', async (req, res) => {
     const { stage, champ_code } = req.query;
     try {
@@ -373,6 +387,7 @@ router.get('/standings/teams', async (req, res) => {
     }
 });
 
+// Lấy chi tiết kết quả qua các chặng của một đội đua
 router.get('/teams/:team_code/results', async (req, res) => {
     try {
         const { champ_code } = req.query;
@@ -400,6 +415,7 @@ router.get('/teams/:team_code/results', async (req, res) => {
 // ==========================================
 // === DATABASE INSPECTOR START ===
 // ==========================================
+// Lấy thông tin cấu trúc cơ sở dữ liệu (tables, views, triggers, procedures, indexes)
 router.get('/db-metadata', async (req, res) => {
     try {
         const [tables] = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'F1_Championship_Management' AND table_type = 'BASE TABLE'");
@@ -419,7 +435,7 @@ router.get('/db-metadata', async (req, res) => {
               AND index_name NOT LIKE 'team_code'
               AND index_name NOT LIKE 'sponsor_code'
         `);
-        
+
         // Group indexes by name to avoid duplicates due to multi-column indexes
         const uniqueIndexes = [];
         const indexNames = new Set();
@@ -441,10 +457,10 @@ router.get('/db-metadata', async (req, res) => {
         res.json({
             tables: tables.map(t => t.TABLE_NAME || t.table_name),
             views: views.map(v => v.TABLE_NAME || v.table_name),
-            triggers: triggers.map(t => ({ 
-                name: t.TRIGGER_NAME || t.trigger_name, 
-                event: t.EVENT_MANIPULATION || t.event_manipulation, 
-                table: t.EVENT_OBJECT_TABLE || t.event_object_table 
+            triggers: triggers.map(t => ({
+                name: t.TRIGGER_NAME || t.trigger_name,
+                event: t.EVENT_MANIPULATION || t.event_manipulation,
+                table: t.EVENT_OBJECT_TABLE || t.event_object_table
             })),
             procedures: procedures.map(p => p.ROUTINE_NAME || p.routine_name),
             indexes: uniqueIndexes
@@ -454,12 +470,13 @@ router.get('/db-metadata', async (req, res) => {
     }
 });
 
+// Lấy dữ liệu mẫu từ một khung nhìn (view) được chỉ định
 router.get('/db-view/:view_name', async (req, res) => {
     const { view_name } = req.params;
     const allowedViews = [
-        'v_race_performance', 'v_driver_standings', 'v_team_standings', 
-        'v_active_contracts', 'v_race_schedule', 'v_team_sponsors', 
-        'v_race_penalties', 'v_driver_penalties_summary', 
+        'v_race_performance', 'v_driver_standings', 'v_team_standings',
+        'v_active_contracts', 'v_race_schedule', 'v_team_sponsors',
+        'v_race_penalties', 'v_driver_penalties_summary',
         'v_driver_career_summary', 'v_championship_summary'
     ];
 
