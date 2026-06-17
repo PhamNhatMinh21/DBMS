@@ -120,6 +120,7 @@
 
 % --- Graphics ---
 \usepackage{graphicx}
+\usepackage{float}
 
 % --- Miscellaneous ---
 \usepackage{enumitem}
@@ -185,7 +186,7 @@
     
     {\large \textbf{GROUP PROJECT REPORT - GROUP 6}} \\
     \vspace{0.5cm}
-    {\Large \textbf{FORMULA 1 CHAMPIONSHIP MANAGEMENT SYSTEM}} \\
+    {\Large \textbf{F1 CHAMPIONSHIP MANAGEMENT SYSTEM}} \\
     
     \vfill
     
@@ -415,6 +416,9 @@ The database schema was rigorously designed to achieve \textbf{BCNF (Boyce-Codd 
     \item \texttt{RACES(\underline{race\_code}, name, num\_laps, start\_time, champ\_code*)}
     \item \texttt{RACE\_ENTRIES(\underline{entry\_id}, race\_code*, contract\_id*)}
     \item \texttt{RESULTS(\underline{entry\_id*}, end\_time, laps\_completed, status, points)}
+    \item \texttt{SPONSORS(\underline{sponsor\_code}, name, industry, description)}
+    \item \texttt{TEAM\_SPONSORSHIPS(\underline{sponsorship\_id}, team\_code*, sponsor\_code*, funding\_amount, start\_year, end\_year)}
+    \item \texttt{PENALTIES(\underline{penalty\_id}, entry\_id*, type, severity\_value, reason, is\_applied)}
 \end{itemize}
 \textit{(* denotes Foreign Key)}
 
@@ -430,7 +434,7 @@ The database schema was rigorously designed to achieve \textbf{BCNF (Boyce-Codd 
 {\large \textit{Detailed Explanation:}} \\ [12pt]
 
 
-The system consists of 7 main entities (tables), designed to comprehensively manage the lifecycle of an F1 racing season.
+The system consists of 10 main entities (tables), designed to comprehensively manage the lifecycle of an F1 racing season.
 
 \begin{itemize}[leftmargin=1.5cm]
     \item \textbf{CHAMPIONSHIPS (Seasons):} Stores information about racing seasons.
@@ -467,6 +471,21 @@ The system consists of 7 main entities (tables), designed to comprehensively man
     \begin{itemize}
         \item \textit{Attributes:} \texttt{\underline{entry\_id}} (INT - Entry ID - PK/FK), \texttt{end\_time} (DATETIME(3) - Finish time), \texttt{laps\_completed} (INT - Laps completed), \texttt{status} (ENUM - Status Finished/DNF/Accident), \texttt{points} (INT - Points).
     \end{itemize}
+
+    \item \textbf{SPONSORS (Sponsors):} Manages list of sponsors.
+    \begin{itemize}
+        \item \textit{Attributes:} \texttt{\underline{sponsor\_code}} (VARCHAR(10) - Sponsor code - PK), \texttt{name} (VARCHAR(100) - Sponsor name), \texttt{industry} (VARCHAR(50) - Industry), \texttt{description} (TEXT - Description).
+    \end{itemize}
+
+    \item \textbf{TEAM\_SPONSORSHIPS (Team Sponsorships):} Junction table tracking funding history between sponsors and teams.
+    \begin{itemize}
+        \item \textit{Attributes:} \texttt{\underline{sponsorship\_id}} (INT - Sponsorship ID - PK), \texttt{team\_code} (VARCHAR(10) - Team code - FK), \texttt{sponsor\_code} (VARCHAR(10) - Sponsor code - FK), \texttt{funding\_amount} (DECIMAL(15,2) - Funding amount), \texttt{start\_year} (INT - Start year), \texttt{end\_year} (INT - End year).
+    \end{itemize}
+
+    \item \textbf{PENALTIES (Penalties):} Records driver penalties during races.
+    \begin{itemize}
+        \item \textit{Attributes:} \texttt{\underline{penalty\_id}} (INT - Penalty ID - PK), \texttt{entry\_id} (INT - Entry ID - FK), \texttt{type} (VARCHAR(50) - Penalty type), \texttt{severity\_value} (INT - Penalty severity value), \texttt{reason} (VARCHAR(255) - Reason), \texttt{is\_applied} (TINYINT - Applied status).
+    \end{itemize}
 \end{itemize}
 \end{tcolorbox}
 
@@ -479,14 +498,16 @@ Based on the foreign key structure, the entities in the system have the followin
     \item \textbf{Race - Entry (1:N):} Each race (\texttt{RACES}) has multiple race entries (\texttt{RACE\_ENTRIES}).
     \item \textbf{Contract - Entry (1:N):} A contract (\texttt{CONTRACTS} - representing 1 driver of 1 team) can be used to register for multiple races (\texttt{RACE\_ENTRIES}).
     \item \textbf{Entry - Result (1:1):} Each race entry (\texttt{RACE\_ENTRIES}) has exactly one corresponding result record (\texttt{RESULTS}).
+    \item \textbf{Team - Sponsor (N:M):} Sponsors (\texttt{SPONSORS}) can sponsor multiple teams, and teams (\texttt{TEAMS}) can be sponsored by multiple sponsors, managed via \texttt{TEAM\_SPONSORSHIPS}.
+    \item \textbf{Entry - Penalty (1:N):} A race entry (\texttt{RACE\_ENTRIES}) can receive multiple penalties (\texttt{PENALTIES}).
 \end{enumerate}
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     % Thay 'kientruc.png' bằng tên file ảnh thực tế bạn đã tải lên
     % width=0.8\textwidth nghĩa là ảnh sẽ rộng bằng 80% chiều rộng trang giấy
     \includegraphics[width=0.8\textwidth]{DB.png} 
-    \caption{Diagram illustrating the 3-tier architecture of the system}
+    \caption{Entity-Relationship Diagram (ERD)}
     \label{fig:kientruc}
 \end{figure}
 

@@ -74,7 +74,7 @@ function DatabaseInspector() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('tables');
-  
+
   // === DATABASE INSPECTOR STATES FOR VIEWS ===
   const [selectedView, setSelectedView] = useState('');
   const [viewData, setViewData] = useState(null);
@@ -170,8 +170,8 @@ function DatabaseInspector() {
       {/* Grid thống kê số lượng */}
       <div className="db-cards-grid">
         {cards.map(card => (
-          <div 
-            key={card.id} 
+          <div
+            key={card.id}
             className={`db-card ${activeTab === card.id ? 'active' : ''}`}
             onClick={() => setActiveTab(card.id)}
             style={{ '--card-accent': card.color }}
@@ -213,9 +213,9 @@ function DatabaseInspector() {
                   <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>
                     Chọn Khung nhìn (View) để hiển thị dữ liệu:
                   </label>
-                  <select 
-                    className="form-control" 
-                    value={selectedView} 
+                  <select
+                    className="form-control"
+                    value={selectedView}
                     onChange={e => setSelectedView(e.target.value)}
                     style={{ cursor: 'pointer' }}
                   >
@@ -227,7 +227,7 @@ function DatabaseInspector() {
                   </select>
                 </div>
               </div>
-              
+
               {/* Bottom pane: views data preview */}
               <div className="db-preview-pane full-width">
                 {selectedView ? (
@@ -240,7 +240,7 @@ function DatabaseInspector() {
                         </span>
                       </div>
                     </div>
-                    
+
                     {viewLoading ? (
                       <div className="view-loader">
                         <div className="spinner"></div>
