@@ -368,7 +368,7 @@ END //
 -- Procedure 8: Lấy danh sách tay đua của đội
 CREATE PROCEDURE sp_get_team_drivers(IN p_team_code VARCHAR(10))
 BEGIN
-    SELECT DISTINCT d.driver_code, d.name, d.nationality, c.is_active
+    SELECT DISTINCT c.contract_id, d.driver_code, d.name, d.nationality, c.is_active
     FROM DRIVERS d
     JOIN CONTRACTS c ON d.driver_code = c.driver_code
     WHERE c.team_code = p_team_code

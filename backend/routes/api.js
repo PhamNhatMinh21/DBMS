@@ -49,13 +49,8 @@ router.get('/teams', async (req, res) => {
 // Lấy danh sách tay đua thuộc một đội đua
 router.get('/teams/:team_code/drivers', async (req, res) => {
     try {
-        const [rows] = await db.query(`
-            SELECT d.driver_code, d.name, d.nationality, c.contract_id 
-            FROM CONTRACTS c 
-            JOIN DRIVERS d ON c.driver_code = d.driver_code 
-            WHERE c.team_code = ? AND c.is_active = 1
-            ORDER BY d.name ASC
-        `, [req.params.team_code]);
+        const [result] = await db.query('CALL sp_get_team_drivers(?)', [req.params.team_code]);
+        const rows = result[0].filter(r => r.is_active === 1);
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -125,7 +120,7 @@ router.post('/races/:race_code/teams/:team_code/entries', async (req, res) => {
 
             const toInsert = contract_ids.filter(id => !existingIds.includes(id));
             for (const cid of toInsert) {
-                await connection.query(`INSERT INTO RACE_ENTRIES (race_code, contract_id) VALUES (?, ?)`, [race_code, cid]);
+                await connection.query(`CALL sp_register_race_entry(?, ?)`, [race_code, cid]);
             }
 
             await connection.commit();
@@ -470,7 +465,7 @@ router.get('/db-metadata', async (req, res) => {
     }
 });
 
-// Lấy dữ liệu mẫu từ một khung nhìn (view) được chỉ định
+// Lấy dữ liệu mẫu từ một view được chỉ định
 router.get('/db-view/:view_name', async (req, res) => {
     const { view_name } = req.params;
     const allowedViews = [
@@ -481,7 +476,7 @@ router.get('/db-view/:view_name', async (req, res) => {
     ];
 
     if (!allowedViews.includes(view_name)) {
-        return res.status(400).json({ error: 'Khung nhìn không hợp lệ hoặc không được phép truy cập.' });
+        return res.status(400).json({ error: 'View không hợp lệ hoặc không được phép truy cập.' });
     }
 
     try {
