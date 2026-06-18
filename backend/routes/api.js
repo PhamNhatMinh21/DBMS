@@ -490,4 +490,220 @@ router.get('/db-view/:view_name', async (req, res) => {
 // === DATABASE INSPECTOR END ===
 // ==========================================
 
+// ============================================================
+// 6. OPERATIONS & MANAGEMENT (PROCEDURES, TRIGGERS, VIEWS)
+// ============================================================
+
+// Lấy danh sách toàn bộ tay đua
+router.get('/drivers', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM DRIVERS ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Thêm mới tay đua (gọi sp_add_driver, kiểm thử trg_check_dob_insert)
+router.post('/drivers', async (req, res) => {
+    const { driver_code, name, date_of_birth, nationality, biography } = req.body;
+    try {
+        await db.query('CALL sp_add_driver(?, ?, ?, ?, ?)', [driver_code, name, date_of_birth, nationality, biography]);
+        res.json({ success: true, message: 'Tay đua đã được thêm thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Tạo hợp đồng mới (gọi sp_create_contract, kiểm thử trg_single_active_contract)
+router.post('/contracts', async (req, res) => {
+    const { driver_code, team_code, is_active } = req.body;
+    try {
+        await db.query('CALL sp_create_contract(?, ?, ?)', [driver_code, team_code, is_active === undefined ? 1 : is_active]);
+        res.json({ success: true, message: 'Hợp đồng được tạo thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Hủy kích hoạt hợp đồng (gọi sp_terminate_active_contracts)
+router.post('/contracts/terminate', async (req, res) => {
+    const { driver_code } = req.body;
+    try {
+        await db.query('CALL sp_terminate_active_contracts(?)', [driver_code]);
+        res.json({ success: true, message: 'Đã hủy kích hoạt tất cả hợp đồng của tay đua!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Chuyển nhượng tay đua (gọi sp_transfer_driver)
+router.post('/contracts/transfer', async (req, res) => {
+    const { driver_code, team_code } = req.body;
+    try {
+        await db.query('CALL sp_transfer_driver(?, ?)', [driver_code, team_code]);
+        res.json({ success: true, message: 'Chuyển nhượng tay đua thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Lấy hiệu suất tay đua (gọi sp_get_driver_performance)
+router.get('/drivers/:driver_code/performance', async (req, res) => {
+    try {
+        const [result] = await db.query('CALL sp_get_driver_performance(?)', [req.params.driver_code]);
+        res.json(result[0][0] || null);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy toàn bộ lượt đăng ký chặng đua để gắn án phạt
+router.get('/race-entries-all', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT re.entry_id, r.name AS race_name, d.name AS driver_name, t.name AS team_name, r.champ_code
+            FROM RACE_ENTRIES re
+            JOIN RACES r ON re.race_code = r.race_code
+            JOIN CONTRACTS c ON re.contract_id = c.contract_id
+            JOIN DRIVERS d ON c.driver_code = d.driver_code
+            JOIN TEAMS t ON c.team_code = t.team_code
+            ORDER BY r.champ_code DESC, r.start_time DESC, d.name ASC
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Thêm hình phạt mới (gọi sp_add_penalty, kiểm thử trg_validate_penalty_value)
+router.post('/penalties', async (req, res) => {
+    const { entry_id, type, severity_value, reason } = req.body;
+    try {
+        await db.query('CALL sp_add_penalty(?, ?, ?, ?)', [entry_id, type, severity_value, reason]);
+        res.json({ success: true, message: 'Đã thêm hình phạt thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Lấy danh sách toàn bộ nhà tài trợ
+router.get('/sponsors', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM SPONSORS ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Thêm nhà tài trợ mới (gọi sp_add_sponsor)
+router.post('/sponsors', async (req, res) => {
+    const { sponsor_code, name, industry, description } = req.body;
+    try {
+        await db.query('CALL sp_add_sponsor(?, ?, ?, ?)', [sponsor_code, name, industry, description]);
+        res.json({ success: true, message: 'Đã thêm nhà tài trợ thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Tạo quan hệ tài trợ đội đua (kiểm thử trg_check_sponsorship_years)
+router.post('/sponsorships', async (req, res) => {
+    const { team_code, sponsor_code, funding_amount, start_year, end_year } = req.body;
+    try {
+        await db.query(`
+            INSERT INTO TEAM_SPONSORSHIPS (team_code, sponsor_code, funding_amount, start_year, end_year)
+            VALUES (?, ?, ?, ?, ?)
+        `, [team_code, sponsor_code, funding_amount, start_year, end_year]);
+        res.json({ success: true, message: 'Đã đăng ký tài trợ thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Thêm mới chặng đua (kiểm thử trg_prevent_negative_laps_race)
+router.post('/races', async (req, res) => {
+    const { race_code, name, num_laps, location, start_time, champ_code, description } = req.body;
+    try {
+        await db.query(`
+            INSERT INTO RACES (race_code, name, num_laps, location, start_time, champ_code, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [race_code, name, num_laps, location, start_time, champ_code, description]);
+        res.json({ success: true, message: 'Đã thêm chặng đua thành công!' });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Lấy danh sách hợp đồng active từ View v_active_contracts
+router.get('/contracts/active', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_active_contracts');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy lịch trình từ View v_race_schedule
+router.get('/races/schedule', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_race_schedule ORDER BY start_time ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy nhà tài trợ đội đua từ View v_team_sponsors
+router.get('/sponsors/teams', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_team_sponsors ORDER BY team_name ASC, funding_amount DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy lịch sử phạt từ View v_race_penalties
+router.get('/penalties/list', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_race_penalties ORDER BY severity_value DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy thống kê phạt từ View v_driver_penalties_summary
+router.get('/penalties/summary', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_driver_penalties_summary ORDER BY total_severity DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy tóm tắt sự nghiệp tay đua từ View v_driver_career_summary
+router.get('/standings/drivers/career-summary', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_driver_career_summary ORDER BY total_career_points DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lấy tóm tắt giải vô địch từ View v_championship_summary
+router.get('/championships/summary', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM v_championship_summary ORDER BY champ_code DESC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

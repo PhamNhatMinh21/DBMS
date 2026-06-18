@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { Flag, Timer, Trophy, Users, Sun, Moon, Monitor, ChevronDown } from 'lucide-react';
+import { Flag, Timer, Trophy, Users, Sun, Moon, Monitor, ChevronDown, Sliders } from 'lucide-react';
 import RegisterRacing from './pages/RegisterRacing';
 import UpdateResults from './pages/UpdateResults';
 import DriverStandings from './pages/DriverStandings';
@@ -9,6 +9,8 @@ import TeamStandings from './pages/TeamStandings';
 import DatabaseInspector from './pages/DatabaseInspector';
 import { Server } from 'lucide-react';
 // === DATABASE INSPECTOR END ===
+import Operations from './pages/Operations';
+
 
 function App() {
   const [theme, setTheme] = useState(localStorage.getItem('f1-theme') || 'default');
@@ -95,6 +97,9 @@ function App() {
             <Server size={20} /> Giám sát CSDL
           </NavLink>
           {/* === DATABASE INSPECTOR END === */}
+          <NavLink to="/operations" className={({isActive}) => `nav-link ${isActive ? 'active' : ''}`}>
+            <Sliders size={20} /> Quản lý Nghiệp vụ
+          </NavLink>
         </nav>
 
         {/* Theme Switcher */}
@@ -123,6 +128,7 @@ function App() {
           {/* === DATABASE INSPECTOR START === */}
           <Route path="/database" element={<DatabaseInspector />} />
           {/* === DATABASE INSPECTOR END === */}
+          <Route path="/operations" element={<Operations champCode={champCode} />} />
         </Routes>
       </main>
     </div>

@@ -241,6 +241,85 @@ BEGIN
     END IF;
 END //
 
+-- Trigger 11: Kiểm tra không để trống thông tin tay đua
+CREATE TRIGGER trg_check_driver_empty
+BEFORE INSERT ON DRIVERS
+FOR EACH ROW
+BEGIN
+    IF TRIM(NEW.driver_code) = '' OR NEW.driver_code IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Mã tay đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.name) = '' OR NEW.name IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Tên tay đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.nationality) = '' OR NEW.nationality IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Quốc tịch tay đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+END //
+
+-- Trigger 12: Kiểm tra không để trống thông tin đội đua
+CREATE TRIGGER trg_check_team_empty
+BEFORE INSERT ON TEAMS
+FOR EACH ROW
+BEGIN
+    IF TRIM(NEW.team_code) = '' OR NEW.team_code IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Mã đội đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.name) = '' OR NEW.name IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Tên đội đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+END //
+
+-- Trigger 13: Kiểm tra không để trống thông tin chặng đua
+CREATE TRIGGER trg_check_race_empty
+BEFORE INSERT ON RACES
+FOR EACH ROW
+BEGIN
+    IF TRIM(NEW.race_code) = '' OR NEW.race_code IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Mã chặng đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.name) = '' OR NEW.name IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Tên chặng đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.location) = '' OR NEW.location IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Địa điểm chặng đua không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+END //
+
+-- Trigger 14: Kiểm tra không để trống thông tin nhà tài trợ
+CREATE TRIGGER trg_check_sponsor_empty
+BEFORE INSERT ON SPONSORS
+FOR EACH ROW
+BEGIN
+    IF TRIM(NEW.sponsor_code) = '' OR NEW.sponsor_code IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Mã nhà tài trợ không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+    IF TRIM(NEW.name) = '' OR NEW.name IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Tên nhà tài trợ không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+END //
+
+-- Trigger 15: Kiểm tra không để trống thông tin hình phạt
+CREATE TRIGGER trg_check_penalty_empty
+BEFORE INSERT ON PENALTIES
+FOR EACH ROW
+BEGIN
+    IF TRIM(NEW.type) = '' OR NEW.type IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Lỗi CSDL: Loại hình phạt không được để trống hoặc chỉ chứa khoảng trắng!';
+    END IF;
+END //
+
 DELIMITER ;
 
 
