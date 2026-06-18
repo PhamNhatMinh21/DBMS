@@ -1,10 +1,10 @@
-# 🏎️ F1 Championship Management System (F1 DBMS)
+# F1 Championship Management System (F1 DBMS)
 
 Hệ thống quản lý và giám sát giải đua Formula 1 — ứng dụng web full-stack hiệu năng cao sử dụng kiến trúc **React (Vite) + Express (Node.js) + MySQL**. Dự án được xây dựng dựa trên thiết kế thẩm mỹ cao cấp (Glassmorphism & McLaren Theme), cho phép nhập dữ liệu chặng đua, quản lý đăng ký, tính điểm tự động và giám sát chi tiết cấu trúc dữ liệu theo thời gian thực.
 
 ---
 
-## 📋 Mục lục
+## Mục lục
 
 - [Tổng quan hệ thống](#-tổng-quan-hệ-thống)
 - [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
@@ -17,7 +17,7 @@ Hệ thống quản lý và giám sát giải đua Formula 1 — ứng dụng we
 
 ---
 
-## 🌐 Tổng quan hệ thống
+## Tổng quan hệ thống
 
 Hệ thống hoạt động theo mô hình 3 lớp (3-tier Architecture) đảm bảo phân tách rõ ràng giữa giao diện, logic xử lý và lưu trữ:
 
@@ -39,14 +39,14 @@ Hệ thống hoạt động theo mô hình 3 lớp (3-tier Architecture) đảm 
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## Công nghệ sử dụng
 
 ### 1. Frontend (Giao diện)
 - **React 18** — Thư viện xây dựng giao diện người dùng dựa trên component.
 - **Vite** — Công cụ build tối ưu hóa HMR (Hot Module Replacement) cho thời gian phản hồi tức thì.
 - **React Router Dom** — Định tuyến và điều hướng trang mượt mà không tải lại.
 - **Lucide React** — Bộ biểu tượng hiện đại và đồng bộ.
-- **Vanilla CSS** — Custom styling theo ngôn ngữ thiết kế Glassmorphism (hiệu ứng kính mờ nghệ thuật) phối hợp gam màu McLaren Papaya Orange làm chủ đạo.
+- **Vanilla CSS** — Custom styling theo ngôn ngữ thiết kế Glassmorphism phối hợp gam màu McLaren Papaya Orange làm chủ đạo.
 
 ### 2. Backend (Máy chủ API)
 - **Node.js** — Môi trường thực thi JavaScript phía máy chủ.
@@ -65,7 +65,7 @@ Hệ thống hoạt động theo mô hình 3 lớp (3-tier Architecture) đảm 
 
 ---
 
-## 📁 Cấu trúc thư mục dự án
+## Cấu trúc thư mục dự án
 
 ```
 F1ChampionshipDBMS/
@@ -98,18 +98,7 @@ F1ChampionshipDBMS/
 └── README.md                         ← Đặc tả tài liệu dự án
 ```
 
----
-
-## ✅ Yêu cầu hệ thống
-
-Trước khi tiến hành cài đặt, máy tính của bạn cần có sẵn:
-- **Node.js** phiên bản **18.0.0** trở lên.
-- **MySQL Server** phiên bản **8.0** trở lên (hoặc MariaDB tương đương).
-- Trình duyệt web hiện đại hỗ trợ CSS Variables và Backdrop-filter (Chrome, Edge, Safari, Firefox).
-
----
-
-## 🚀 Hướng dẫn cài đặt & Chạy dự án
+## Hướng dẫn cài đặt & Chạy dự án
 
 ### Bước 1 — Thiết lập Cơ sở dữ liệu MySQL
 
@@ -167,7 +156,7 @@ mysql -u root -p < schema.sql
 
 ---
 
-## 🎯 Các tính năng chính
+## Các tính năng chính
 
 ### 1. Đồng bộ chọn đa mùa giải (Multi-Season Sync)
 Sidebar cho phép lựa chọn linh hoạt giữa các mùa giải (VD: `F1-2025`, `F1-2026`). Việc thay đổi mùa giải sẽ tự động cập nhật lịch trình chặng đua, danh sách hợp đồng tay đua hoạt động, và dữ liệu điểm số xếp hạng hiển thị tương ứng trên toàn bộ ứng dụng.
@@ -189,7 +178,7 @@ Trang giám sát chuyên sâu cung cấp cái nhìn trực quan về bên trong 
 
 ---
 
-## 🗄️ Đặc tả Kiến trúc Database (Mô hình 10x10)
+## Đặc tả Kiến trúc Database (Mô hình 10x10)
 
 Hệ thống được thiết kế với số lượng thực thể cốt lõi cân bằng ở con số 10 nhằm tối ưu hóa hiệu năng và phục vụ kiểm thử:
 
@@ -255,7 +244,7 @@ Hệ thống được thiết kế với số lượng thực thể cốt lõi c
 
 ---
 
-## 🌐 Danh sách API Endpoints
+## Danh sách API Endpoints
 
 | Phương thức | Endpoint | Mô tả |
 | :--- | :--- | :--- |
@@ -270,5 +259,3 @@ Hệ thống được thiết kế với số lượng thực thể cốt lõi c
 | **POST** | `/api/races/results` | Lưu trữ kết quả thi đấu hàng loạt cho một chặng đua và kích hoạt procedure tính điểm xếp hạng. |
 
 ---
-
-*Dự án thuộc học phần Hệ Quản Trị Cơ Sở Dữ Liệu — Nhóm 6 — Học viện Công nghệ Bưu chính Viễn thông (PTIT)*

@@ -12,7 +12,6 @@ const pool = mysql.createPool({
     dateStrings: true
 });
 
-// Test connection on startup
 pool.getConnection()
     .then(conn => {
         console.log(`✅ MySQL Connected Successfully to: ${process.env.DB_NAME}`);

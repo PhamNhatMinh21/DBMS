@@ -431,7 +431,6 @@ router.get('/db-metadata', async (req, res) => {
               AND index_name NOT LIKE 'sponsor_code'
         `);
 
-        // Group indexes by name to avoid duplicates due to multi-column indexes
         const uniqueIndexes = [];
         const indexNames = new Set();
         indexes.forEach(idx => {
